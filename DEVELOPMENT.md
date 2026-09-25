@@ -13,7 +13,8 @@ The repository selects the .NET 10 SDK family in `global.json` and configures `d
 - `src/RedmineMcp/` — minimal stdio host built with the official MCP C# SDK.
 - `tests/Analyzer.Tests/` — Analyzer bootstrap integration test.
 - `docs/design/` — frozen V2 design baselines.
-- `docs/scopes/` — approved scope briefs, decisions, and review records.
+- `docs/scopes/` — approved scope briefs, decisions, contracts, and review records.
+- [Scope 003 Core Domain & Status Contract](docs/scopes/scope-003-core-domain-status-contract.md) — authoritative domain relationships, lifecycle statuses, and stop/failure semantics.
 - `.work/` — disposable working material; only this directory's README is tracked.
 
 The Analyzer bootstrap serves `/` and contains no product workflows. RedmineMcp establishes the MCP stdio host only; it has no placeholder tools. For stdio use, stdout is reserved for protocol messages and console logging is routed to stderr.

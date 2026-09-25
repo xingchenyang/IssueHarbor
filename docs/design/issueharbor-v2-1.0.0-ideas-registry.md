@@ -319,20 +319,9 @@ Must remain generic across Redmine installations.
 
 ## 19. Exact Request / Item status model
 
-Classification: `OPEN`
+Classification: `CLOSED / FROZEN BY SCOPE 003`
 
-Need a small durable status model supporting real states such as:
-
-- completed;
-- failed;
-- blocked;
-- not_started;
-- analyzer_busy;
-- execution_deadline;
-- operator_stopped;
-- provider-wide stop conditions.
-
-Avoid recreating the old generic Job framework.
+The approved Request and Request Item relationships, lifecycle statuses, stop reasons, and failure mappings are defined in the [Scope 003 Core Domain & Status Contract](../scopes/scope-003-core-domain-status-contract.md). That contract resolves this open idea. Persistence shape and implementation details remain deferred to later scopes.
 
 
 ## 20. Open-source license

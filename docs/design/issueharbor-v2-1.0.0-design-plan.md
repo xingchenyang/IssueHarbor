@@ -868,7 +868,7 @@ Not architecture blockers, but must be resolved before needed:
 
 - open-source license;
 - exact structured result schema;
-- exact Request/Item/status model;
+- Request/Item lifecycle semantics (frozen by [Scope 003](../scopes/scope-003-core-domain-status-contract.md)); persistence shape and implementation details remain deferred;
 - exact RedmineMcp 1.0 tool manifest;
 - exact provider/profile adapter design;
 - exact source repository mapping/revision capture;
