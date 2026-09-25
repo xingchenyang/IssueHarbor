@@ -872,7 +872,7 @@ Not architecture blockers, but must be resolved before needed:
 
 - open-source license;
 - Request/Item lifecycle semantics (frozen by [Scope 003](../scopes/scope-003-core-domain-status-contract.md)); persistence shape and implementation details remain deferred;
-- exact RedmineMcp 1.0 tool manifest;
+- RedmineMcp 1.0 tool manifest (frozen by [Scope 006](../scopes/scope-006-redmine-mcp-manifest-contract.md));
 - exact provider/profile adapter design;
 - exact source repository mapping/revision capture;
 - exact Web UI localization scope;

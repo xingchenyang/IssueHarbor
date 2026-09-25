@@ -285,21 +285,18 @@ Keep it functionally simple.
 
 ## 17. Exact RedmineMcp 1.0 tool manifest
 
-Classification: `OPEN`
+Classification: `CLOSED / FROZEN BY SCOPE 006`
 
-Historical 12-tool surface is evidence, not a requirement.
+The approved RedmineMcp 1.0 manifest is defined by the [Scope 006 RedmineMcp Manifest Contract](../scopes/scope-006-redmine-mcp-manifest-contract.md) and contains exactly:
 
-Implementation planning should classify old tools one by one:
+```text
+redmine_issues_list
+redmine_issue_get
+redmine_queries_list
+redmine_attachment_get
+```
 
-- KEEP
-- RENAME
-- MERGE
-- DROP
-- ADD
-
-A tool belongs only if it materially helps discover/retrieve/understand Issues, history, relations, bounded attachment context, or necessary reference metadata.
-
-Do not compete on maximum API coverage.
+The historical 12-tool surface is evidence, not a requirement. Any future manifest expansion requires an explicit approved scope decision.
 
 ## 18. Exact structured result schema
 
