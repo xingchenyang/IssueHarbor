@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Analyzer/IssueHarbor.Analyzer.csproj" />
+    <Project Path="src/RedmineMcp/IssueHarbor.RedmineMcp.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Analyzer.Tests/IssueHarbor.Analyzer.Tests.csproj" />
+  </Folder>
+</Solution>
