@@ -4,4 +4,12 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
+    <PackageReference Include="Corvus.Text.Json.Validator" Version="5.2.12" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="Contracts/analysis-result-v1.schema.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Storage/Migrations/*.sql" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

@@ -505,6 +505,8 @@ Conceptual layout:
 
 > **SQLite is catalog/query authority; artifact storage is immutable content authority.**
 
+Scope 005 freezes storage schema version 1, the initial seven-table schema, linear SQL migrations, startup compatibility verification without automatic migration of existing storage, and database-last publication of immutable artifacts using relative paths. The concrete contract is archived in [Scope 005 — Storage Foundation](../scopes/scope-005-storage-foundation-contract.md).
+
 Artifact publication:
 
 1. generate temp output;

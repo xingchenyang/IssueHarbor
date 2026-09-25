@@ -13,6 +13,9 @@
     <None Include="../../src/Analyzer/Contracts/analysis-result-v1.schema.json"
           Link="Contracts/analysis-result-v1.schema.json"
           CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/Analyzer/Storage/Migrations/*.sql"
+          Link="Storage/Migrations/%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Analyzer/IssueHarbor.Analyzer.csproj" />
