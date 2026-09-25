@@ -12,7 +12,8 @@ The repository selects the .NET 10 SDK family in `global.json` and configures `d
 - `src/Analyzer/` — minimal ASP.NET Core 10 Razor Pages host.
 - `src/RedmineMcp/` — minimal stdio host built with the official MCP C# SDK.
 - `tests/Analyzer.Tests/` — Analyzer bootstrap integration test.
-- `docs/` — frozen V2 design baselines and the technical baseline decision.
+- `docs/design/` — frozen V2 design baselines.
+- `docs/scopes/` — approved scope briefs, decisions, and review records.
 - `.work/` — disposable working material; only this directory's README is tracked.
 
 The Analyzer bootstrap serves `/` and contains no product workflows. RedmineMcp establishes the MCP stdio host only; it has no placeholder tools. For stdio use, stdout is reserved for protocol messages and console logging is routed to stderr.

@@ -2,7 +2,7 @@
 
 IssueHarbor is a self-hosted service for reproducible AI analyses of Redmine issues, with preserved provenance and model-result comparison.
 
-The 1.0 design targets Redmine. Its companion RedmineMcp service uses a deliberately read-only interface. This repository currently contains the minimal .NET bootstrap; product workflows are added only by approved scopes.
+IssueHarbor 1.0 targets Redmine. RedmineMcp provides deliberately read-only Redmine context access and can also be used independently from Analyzer. This repository currently contains the minimal .NET bootstrap; product workflows are added only by approved scopes.
 
 ## Development
 
