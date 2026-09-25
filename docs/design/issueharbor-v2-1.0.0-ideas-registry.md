@@ -303,19 +303,13 @@ Do not compete on maximum API coverage.
 
 ## 18. Exact structured result schema
 
-Classification: `OPEN`
+Classification: `CLOSED / FROZEN BY SCOPE 004`
 
-Frozen conceptual fields:
+The approved field set, requiredness, enum values, schema version, cross-field invariants, and rendering semantics are defined in the [Scope 004 Structured Result Contract](../scopes/scope-004-structured-result-contract.md). Its canonical machine-readable v1 schema is `src/Analyzer/Contracts/analysis-result-v1.schema.json`.
 
-- change type;
-- implementation complexity;
-- requires code change;
-- confidence;
-- rationale.
+Scope 004 resolves this open idea. Provider integration, persistence shape, malformed-output repair, and runtime enforcement or artifact-publication implementation remain deferred.
 
-Need exact JSON schema, required/optional rules, versioning, validation, and rendering behavior.
-
-Must remain generic across Redmine installations.
+The contract remains generic across Redmine installations.
 
 ## 19. Exact Request / Item status model
 

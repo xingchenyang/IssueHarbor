@@ -7,6 +7,12 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.12" />
+    <PackageReference Include="Corvus.Text.Json.Validator" Version="5.2.12" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../../src/Analyzer/Contracts/analysis-result-v1.schema.json"
+          Link="Contracts/analysis-result-v1.schema.json"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Analyzer/IssueHarbor.Analyzer.csproj" />

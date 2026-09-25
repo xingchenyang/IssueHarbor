@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "IssueHarbor structured analysis result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "change_type",
+    "implementation_complexity",
+    "requires_code_change",
+    "confidence",
+    "complexity_rationale"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "change_type": {
+      "type": "string",
+      "enum": [
+        "bug_fix",
+        "enhancement",
+        "configuration_or_usage",
+        "clarification_needed",
+        "no_change",
+        "unknown"
+      ]
+    },
+    "implementation_complexity": {
+      "type": "string",
+      "enum": [
+        "none",
+        "low",
+        "medium",
+        "high",
+        "unknown"
+      ]
+    },
+    "requires_code_change": {
+      "type": "string",
+      "enum": [
+        "yes",
+        "no",
+        "uncertain"
+      ]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "complexity_rationale": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": [ "requires_code_change" ],
+        "properties": {
+          "requires_code_change": { "const": "no" }
+        }
+      },
+      "then": {
+        "properties": {
+          "implementation_complexity": { "const": "none" }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [ "requires_code_change" ],
+        "properties": {
+          "requires_code_change": { "const": "yes" }
+        }
+      },
+      "then": {
+        "properties": {
+          "implementation_complexity": {
+            "enum": [ "low", "medium", "high", "unknown" ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [ "requires_code_change" ],
+        "properties": {
+          "requires_code_change": { "const": "uncertain" }
+        }
+      },
+      "then": {
+        "properties": {
+          "implementation_complexity": { "const": "unknown" }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [ "change_type" ],
+        "properties": {
+          "change_type": { "const": "configuration_or_usage" }
+        }
+      },
+      "then": {
+        "properties": {
+          "requires_code_change": { "const": "no" },
+          "implementation_complexity": { "const": "none" }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [ "change_type" ],
+        "properties": {
+          "change_type": { "const": "no_change" }
+        }
+      },
+      "then": {
+        "properties": {
+          "requires_code_change": { "const": "no" },
+          "implementation_complexity": { "const": "none" }
+        }
+      }
+    }
+  ]
+}

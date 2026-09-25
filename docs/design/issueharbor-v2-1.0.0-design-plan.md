@@ -864,10 +864,11 @@ Then make one final archival documentation commit. No unnecessary release tag.
 
 ## 34. Open items before the relevant implementation step
 
+The exact structured result fields, enums, requiredness, version, cross-field invariants, and rendering semantics are frozen by [Scope 004](../scopes/scope-004-structured-result-contract.md). Provider integration, persistence representation, and runtime enforcement or artifact-publication implementation remain deferred.
+
 Not architecture blockers, but must be resolved before needed:
 
 - open-source license;
-- exact structured result schema;
 - Request/Item lifecycle semantics (frozen by [Scope 003](../scopes/scope-003-core-domain-status-contract.md)); persistence shape and implementation details remain deferred;
 - exact RedmineMcp 1.0 tool manifest;
 - exact provider/profile adapter design;
