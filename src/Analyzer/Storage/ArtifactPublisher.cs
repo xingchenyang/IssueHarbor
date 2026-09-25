@@ -38,7 +38,7 @@ public sealed class ArtifactPublisher
         var relativePath = $"snapshots/{id}/snapshot.json";
         var artifact = Describe(relativePath, snapshotJson);
         EnsureNotCatalogued("snapshots", "snapshot_id", id);
-        PublishFile(snapshotJson, GetAbsolutePath(relativePath));
+        PublishFile(snapshotJson, ResolveArtifactPath(relativePath));
 
         using var connection = _connections.OpenConnection();
         using var transaction = connection.BeginTransaction();
@@ -86,8 +86,8 @@ public sealed class ArtifactPublisher
         var reportArtifact = Describe($"runs/{runIdText}/report.md", reportMarkdown);
         EnsureNotCatalogued("runs", "run_id", runIdText);
 
-        var resultAbsolutePath = GetAbsolutePath(resultArtifact.RelativePath);
-        var reportAbsolutePath = GetAbsolutePath(reportArtifact.RelativePath);
+        var resultAbsolutePath = ResolveArtifactPath(resultArtifact.RelativePath);
+        var reportAbsolutePath = ResolveArtifactPath(reportArtifact.RelativePath);
         if (File.Exists(resultAbsolutePath) || File.Exists(reportAbsolutePath))
         {
             throw new InvalidOperationException("An immutable Run artifact already exists for this identity.");
@@ -225,9 +225,47 @@ public sealed class ArtifactPublisher
         }
     }
 
-    private string GetAbsolutePath(string relativePath) => Path.Combine(
-        _connections.DurableDataRoot,
-        relativePath.Replace('/', Path.DirectorySeparatorChar));
+    internal string ResolveArtifactPath(string relativePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(relativePath);
+
+        var hasDrivePrefix = relativePath.Length >= 2 &&
+            char.IsAsciiLetter(relativePath[0]) &&
+            relativePath[1] == ':';
+        if (Path.IsPathRooted(relativePath) ||
+            relativePath.StartsWith('/') ||
+            relativePath.StartsWith('\\') ||
+            hasDrivePrefix)
+        {
+            throw new InvalidOperationException("Artifact paths must be relative to the durable-data root.");
+        }
+
+        var pathSegments = relativePath.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries);
+        if (pathSegments.Any(segment => segment == ".."))
+        {
+            throw new InvalidOperationException("Artifact paths must not traverse outside the durable-data root.");
+        }
+
+        var normalizedRelativePath = relativePath
+            .Replace('/', Path.DirectorySeparatorChar)
+            .Replace('\\', Path.DirectorySeparatorChar);
+        var fullRoot = Path.GetFullPath(_connections.DurableDataRoot);
+        var fullPath = Path.GetFullPath(normalizedRelativePath, fullRoot);
+        var rootBoundary = Path.EndsInDirectorySeparator(fullRoot)
+            ? fullRoot
+            : fullRoot + Path.DirectorySeparatorChar;
+        var comparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
+        if (string.Equals(fullPath, fullRoot, comparison) ||
+            !fullPath.StartsWith(rootBoundary, comparison))
+        {
+            throw new InvalidOperationException("Artifact path resolves outside the durable-data root.");
+        }
+
+        return fullPath;
+    }
 
     private static void PublishFile(byte[] content, string destinationPath)
     {

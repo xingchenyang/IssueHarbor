@@ -27,10 +27,28 @@ public sealed class StorageFoundationTests
     [TestCleanup]
     public void CleanUp()
     {
-        SqliteConnection.ClearAllPools();
-        if (Directory.Exists(_dataRoot))
+        const int maxAttempts = 5;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            Directory.Delete(_dataRoot, recursive: true);
+            SqliteConnection.ClearAllPools();
+            if (!Directory.Exists(_dataRoot))
+            {
+                return;
+            }
+
+            try
+            {
+                Directory.Delete(_dataRoot, recursive: true);
+                return;
+            }
+            catch (IOException) when (attempt < maxAttempts)
+            {
+                Thread.Sleep(TimeSpan.FromMilliseconds(25 * attempt));
+            }
+            catch (UnauthorizedAccessException) when (attempt < maxAttempts)
+            {
+                Thread.Sleep(TimeSpan.FromMilliseconds(25 * attempt));
+            }
         }
     }
 
@@ -260,6 +278,11 @@ public sealed class StorageFoundationTests
         Assert.AreEqual(Convert.ToHexString(SHA256.HashData(content)).ToLowerInvariant(), published.Artifact.Sha256);
         Assert.AreEqual(content.LongLength, published.Artifact.SizeBytes);
         Assert.IsTrue(File.Exists(PhysicalPath(published.Artifact.RelativePath)));
+        var persistedContent = File.ReadAllBytes(PhysicalPath(published.Artifact.RelativePath));
+        var persistedSha256 = Convert.ToHexString(SHA256.HashData(persistedContent)).ToLowerInvariant();
+        var persistedSize = persistedContent.LongLength;
+        Assert.AreEqual(published.Artifact.Sha256, persistedSha256);
+        Assert.AreEqual(published.Artifact.SizeBytes, persistedSize);
 
         using var verifyConnection = _connections.OpenConnection();
         using var command = verifyConnection.CreateCommand();
@@ -268,8 +291,8 @@ public sealed class StorageFoundationTests
         using var reader = command.ExecuteReader();
         Assert.IsTrue(reader.Read());
         Assert.AreEqual(published.Artifact.RelativePath, reader.GetString(0));
-        Assert.AreEqual(published.Artifact.Sha256, reader.GetString(1));
-        Assert.AreEqual(content.LongLength, reader.GetInt64(2));
+        Assert.AreEqual(persistedSha256, reader.GetString(1));
+        Assert.AreEqual(persistedSize, reader.GetInt64(2));
         Assert.AreEqual(FixedTimestamp, reader.GetString(3));
     }
 
@@ -313,6 +336,16 @@ public sealed class StorageFoundationTests
         Assert.AreEqual(report.LongLength, published.Report.SizeBytes);
         Assert.IsTrue(File.Exists(PhysicalPath(published.Result.RelativePath)));
         Assert.IsTrue(File.Exists(PhysicalPath(published.Report.RelativePath)));
+        var persistedResult = File.ReadAllBytes(PhysicalPath(published.Result.RelativePath));
+        var persistedResultSha256 = Convert.ToHexString(SHA256.HashData(persistedResult)).ToLowerInvariant();
+        var persistedResultSize = persistedResult.LongLength;
+        var persistedReport = File.ReadAllBytes(PhysicalPath(published.Report.RelativePath));
+        var persistedReportSha256 = Convert.ToHexString(SHA256.HashData(persistedReport)).ToLowerInvariant();
+        var persistedReportSize = persistedReport.LongLength;
+        Assert.AreEqual(published.Result.Sha256, persistedResultSha256);
+        Assert.AreEqual(published.Result.SizeBytes, persistedResultSize);
+        Assert.AreEqual(published.Report.Sha256, persistedReportSha256);
+        Assert.AreEqual(published.Report.SizeBytes, persistedReportSize);
 
         using var command = connection.CreateCommand();
         command.CommandText = """
@@ -325,11 +358,11 @@ public sealed class StorageFoundationTests
         using var reader = command.ExecuteReader();
         Assert.IsTrue(reader.Read());
         Assert.AreEqual(published.Result.RelativePath, reader.GetString(0));
-        Assert.AreEqual(published.Result.Sha256, reader.GetString(1));
-        Assert.AreEqual(result.LongLength, reader.GetInt64(2));
+        Assert.AreEqual(persistedResultSha256, reader.GetString(1));
+        Assert.AreEqual(persistedResultSize, reader.GetInt64(2));
         Assert.AreEqual(published.Report.RelativePath, reader.GetString(3));
-        Assert.AreEqual(published.Report.Sha256, reader.GetString(4));
-        Assert.AreEqual(report.LongLength, reader.GetInt64(5));
+        Assert.AreEqual(persistedReportSha256, reader.GetString(4));
+        Assert.AreEqual(persistedReportSize, reader.GetInt64(5));
         Assert.AreEqual(1, reader.GetInt32(6));
         Assert.AreEqual("bug_fix", reader.GetString(7));
         Assert.AreEqual("low", reader.GetString(8));
@@ -452,6 +485,31 @@ public sealed class StorageFoundationTests
         command.Parameters.AddWithValue("$sha256", new string('a', 64));
 
         AssertThrows<SqliteException>(() => command.ExecuteNonQuery());
+    }
+
+    [TestMethod]
+    public void Artifact_path_guard_rejects_rooted_and_escaping_inputs()
+    {
+        var publisher = new ArtifactPublisher(_connections);
+        var escapingPaths = new[]
+        {
+            @"C:\synthetic\outside\snapshot.json",
+            @"C:synthetic\outside\snapshot.json",
+            @"\synthetic\outside\snapshot.json",
+            @"\\synthetic\share\snapshot.json",
+            "/synthetic/outside/snapshot.json",
+            "//synthetic/share/snapshot.json",
+            "../synthetic/outside/snapshot.json",
+            @"..\synthetic\outside\snapshot.json",
+            "nested/../../synthetic/outside/snapshot.json",
+            @"nested\..\..\synthetic\outside\snapshot.json",
+            "."
+        };
+
+        foreach (var path in escapingPaths)
+        {
+            AssertThrows<InvalidOperationException>(() => publisher.ResolveArtifactPath(path));
+        }
     }
 
     [TestMethod]
