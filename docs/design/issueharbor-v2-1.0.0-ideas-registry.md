@@ -298,6 +298,8 @@ redmine_attachment_get
 
 The historical 12-tool surface is evidence, not a requirement. Any future manifest expansion requires an explicit approved scope decision.
 
+The manifest remains defined by Scope 006. The approved HTTP read-path behavior and its trust boundaries are defined by the [Scope 007 RedmineMcp Read Path Contract](../scopes/scope-007-redmine-mcp-read-path-contract.md).
+
 ## 18. Exact structured result schema
 
 Classification: `CLOSED / FROZEN BY SCOPE 004`

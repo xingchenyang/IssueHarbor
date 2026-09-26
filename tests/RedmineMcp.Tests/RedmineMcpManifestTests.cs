@@ -9,7 +9,8 @@ namespace IssueHarbor.RedmineMcp.Tests;
 [TestClass]
 public sealed class RedmineMcpManifestTests
 {
-    private static readonly IReadOnlyDictionary<string, Tool> Tools = RedmineMcpManifest.CreateTools()
+    private static readonly NeverNetworkHandler HttpHandler = new();
+    private static readonly IReadOnlyDictionary<string, Tool> Tools = CreateTools()
         .Select(tool => tool.ProtocolTool)
         .ToDictionary(tool => tool.Name, StringComparer.Ordinal);
 
@@ -137,15 +138,18 @@ public sealed class RedmineMcpManifestTests
     {
         RedmineMcpManifest.ValidatePositiveId(1, "issue_id");
         RedmineMcpManifest.ValidatePositiveId(1, "attachment_id");
-        AssertThrowsException<McpException>(() => RedmineMcpManifest.ValidatePositiveId(0, "issue_id"));
-        AssertThrowsException<McpException>(() => RedmineMcpManifest.ValidatePositiveId(-1, "attachment_id"));
+        Assert.AreEqual(RedmineMcpErrorCategories.InvalidArgument,
+            AssertThrowsException<RedmineMcpFailure>(() => RedmineMcpManifest.ValidatePositiveId(0, "issue_id")).Category);
+        Assert.AreEqual(RedmineMcpErrorCategories.InvalidArgument,
+            AssertThrowsException<RedmineMcpFailure>(() => RedmineMcpManifest.ValidatePositiveId(-1, "attachment_id")).Category);
     }
 
     [TestMethod]
     public void ManifestInspectionRequiresNoRedmineOrNetworkAccess()
     {
-        Assert.AreEqual(4, RedmineMcpManifest.CreateTools().Count);
+        Assert.AreEqual(4, Tools.Count);
         Assert.IsTrue(Tools.Values.All(tool => tool.InputSchema.ValueKind == JsonValueKind.Object));
+        Assert.AreEqual(0, HttpHandler.RequestCount);
     }
 
     private static void AssertRequiredIntegerProperty(JsonElement schema, string name)
@@ -194,9 +198,9 @@ public sealed class RedmineMcpManifestTests
 
     private static void AssertInvalidIssueList(long? queryId, long[]? issueIds, string? status, int offset, int limit)
     {
-        var exception = AssertThrowsException<McpException>(() =>
+        var exception = AssertThrowsException<RedmineMcpFailure>(() =>
             RedmineMcpManifest.ValidateIssueListInputs(queryId, issueIds, status, offset, limit));
-        StringAssert.StartsWith(exception.Message, "invalid_argument:");
+        Assert.AreEqual(RedmineMcpErrorCategories.InvalidArgument, exception.Category);
     }
 
     private static JsonElement GetOutputSchema(Tool tool) =>
@@ -215,5 +219,28 @@ public sealed class RedmineMcpManifestTests
         }
 
         throw new AssertFailedException($"Expected {typeof(TException).Name} to be thrown.");
+    }
+
+    private static IReadOnlyList<ModelContextProtocol.Server.McpServerTool> CreateTools()
+    {
+        var options = new RedmineMcpOptions(
+            new Uri("https://redmine.example.invalid/"),
+            "synthetic-redmine-api-key",
+            TimeSpan.FromSeconds(30),
+            RedmineMcpOptions.DefaultMaxAttachmentBytes);
+        var client = new HttpClient(HttpHandler);
+        var readPath = new RedmineMcpReadPath(options, client, new StderrRedmineMcpDiagnostics(new StringWriter()));
+        return RedmineMcpManifest.CreateTools(new RedmineMcpToolHandlers(readPath));
+    }
+
+    private sealed class NeverNetworkHandler : HttpMessageHandler
+    {
+        public int RequestCount { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            RequestCount++;
+            throw new InvalidOperationException("Manifest inspection must not issue HTTP requests.");
+        }
     }
 }
