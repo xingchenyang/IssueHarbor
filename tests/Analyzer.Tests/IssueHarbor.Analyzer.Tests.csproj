@@ -19,7 +19,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="SourceContext/GitProcessStub/**/*.cs" />
+    <Compile Remove="SourceContext/GitRemoteProbe/**/*.cs" />
     <ProjectReference Include="../../src/Analyzer/IssueHarbor.Analyzer.csproj" />
     <ProjectReference Include="SourceContext/GitProcessStub/GitProcessStub.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="SourceContext/GitRemoteProbe/GitRemoteProbe.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>

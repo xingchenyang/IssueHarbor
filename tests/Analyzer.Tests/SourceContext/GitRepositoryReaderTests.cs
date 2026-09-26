@@ -193,6 +193,42 @@ public sealed class GitRepositoryReaderTests
     }
 
     [TestMethod]
+    public async Task Tree_and_search_parsers_preserve_newline_and_tab_paths_created_as_git_objects()
+    {
+        const string newlinePath = "name-with-newline\npart.txt";
+        const string tabPath = "name-with-tab\tpart.txt";
+        var newlineBlob = (await RunGitWithInputAsync(
+            _workingRepository,
+            Encoding.UTF8.GetBytes("newline-path-marker\n"),
+            "hash-object", "-w", "--stdin")).StandardOutput.Trim();
+        var tabBlob = (await RunGitWithInputAsync(
+            _workingRepository,
+            Encoding.UTF8.GetBytes("tab-path-marker\n"),
+            "hash-object", "-w", "--stdin")).StandardOutput.Trim();
+        var treeInput = Encoding.UTF8.GetBytes(
+            $"100644 blob {newlineBlob}\t{newlinePath}\0" +
+            $"100644 blob {tabBlob}\t{tabPath}\0");
+        var treeOid = (await RunGitWithInputAsync(_workingRepository, treeInput, "mktree", "-z")).StandardOutput.Trim();
+        var commitOid = (await RunGitAsync(_workingRepository, "commit-tree", treeOid, "-m", "synthetic control-character paths")).StandardOutput.Trim();
+        await RunGitAsync(_workingRepository, "update-ref", "refs/heads/main", commitOid);
+
+        var reader = CreateReader(_workingRepository, "refs/heads/main");
+        var context = (await reader.ResolveForProjectAsync(42))!;
+        var entries = await reader.ListTreeAsync(context);
+
+        CollectionAssert.AreEquivalent(
+            new[] { newlinePath, tabPath },
+            entries.Select(static entry => entry.Path).ToArray());
+
+        var matches = await reader.SearchAsync(context, "-path-marker", null, 10);
+        CollectionAssert.AreEquivalent(
+            new[] { newlinePath, tabPath },
+            matches.Select(static match => match.Path).ToArray());
+        Assert.AreEqual("newline-path-marker", matches.Single(match => match.Path == newlinePath).MatchedText);
+        Assert.AreEqual("tab-path-marker", matches.Single(match => match.Path == tabPath).MatchedText);
+    }
+
+    [TestMethod]
     public async Task Blob_reader_enforces_caller_byte_limit_and_rejects_gitlinks()
     {
         var reader = CreateReader(_workingRepository);
@@ -394,6 +430,72 @@ public sealed class GitRepositoryReaderTests
     }
 
     [TestMethod]
+    public async Task Promisor_blob_read_suppresses_lazy_fetch_and_control_proves_fake_transport_detection()
+    {
+        var reader = CreateReader(_workingRepository);
+        var context = (await reader.ResolveForProjectAsync(42))!;
+        var entry = (await reader.ListTreeAsync(context)).Single(item => item.Path == "readme.txt");
+        var helperDirectory = RemoteProbeDirectory();
+        var helperPath = Path.Combine(helperDirectory, OperatingSystem.IsWindows() ? "git-remote-probe.exe" : "git-remote-probe");
+        Assert.IsTrue(File.Exists(helperPath), "The synthetic Git remote helper was not built.");
+
+        var previousPath = Environment.GetEnvironmentVariable("PATH");
+        const string logEnvironmentName = "ISSUEHARBOR_REMOTE_HELPER_LOG";
+        var previousLogPath = Environment.GetEnvironmentVariable(logEnvironmentName);
+        var helperLogPath = Path.Combine(_testRoot, "promisor-transport.log");
+        try
+        {
+            Environment.SetEnvironmentVariable("PATH", PrependPath(helperDirectory, previousPath));
+            Environment.SetEnvironmentVariable(logEnvironmentName, helperLogPath);
+
+            await RunGitAsync(_workingRepository, "config", "extensions.partialClone", "origin");
+            await RunGitAsync(_workingRepository, "config", "remote.origin.url", "probe::synthetic");
+            await RunGitAsync(_workingRepository, "config", "remote.origin.promisor", "true");
+            await RunGitAsync(_workingRepository, "config", "remote.origin.partialclonefilter", "blob:none");
+            await RunGitAsync(_workingRepository, "config", "protocol.probe.allow", "always");
+
+            var promisorPackPrefix = Path.Combine(".git", "objects", "pack", "pack-synthetic-promisor");
+            var revisionInput = Encoding.ASCII.GetBytes($"{context.CommitOid}\n^{entry.ObjectOid}\n");
+            var packOid = (await RunGitWithInputAsync(
+                _workingRepository,
+                revisionInput,
+                "pack-objects", "--revs", "--no-reuse-delta", promisorPackPrefix)).StandardOutput.Trim();
+            var packFileStem = $"pack-synthetic-promisor-{packOid}";
+            var packIndexPath = Path.Combine(_workingRepository, ".git", "objects", "pack", $"{packFileStem}.idx");
+            var packedObjects = await RunGitAsync(_workingRepository, "verify-pack", "-v", packIndexPath);
+            Assert.IsFalse(
+                packedObjects.StandardOutput.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
+                    .Any(line => line.StartsWith(entry.ObjectOid, StringComparison.Ordinal)),
+                "The synthetic promisor pack unexpectedly contains the target blob.");
+
+            var promisorMarker = Path.Combine(_workingRepository, ".git", "objects", "pack", $"{packFileStem}.promisor");
+            await File.WriteAllTextAsync(promisorMarker, "synthetic missing-blob promise\n", Utf8WithoutBom);
+
+            var looseObjectPath = Path.Combine(_workingRepository, ".git", "objects", entry.ObjectOid[..2], entry.ObjectOid[2..]);
+            Assert.IsTrue(File.Exists(looseObjectPath));
+            File.SetAttributes(looseObjectPath, FileAttributes.Normal);
+            File.Delete(looseObjectPath);
+
+            var exception = await AssertThrowsAsync<SourceContextException>(
+                async () => await reader.ReadBlobAsync(context, entry, 1024));
+            Assert.AreEqual(SourceContextFailureCode.ObjectMissing, exception.Code);
+            Assert.IsFalse(File.Exists(helperLogPath), "The production read path invoked the synthetic promisor transport.");
+
+            var control = await RunGitWithoutLazyFetchAsync(_workingRepository, "cat-file", "-t", entry.ObjectOid);
+            Assert.AreNotEqual(0, control.ExitCode, "The fake transport must not provide the omitted object.");
+            Assert.IsTrue(File.Exists(helperLogPath), "The no-environment control did not invoke the synthetic transport.");
+            var helperLog = await File.ReadAllTextAsync(helperLogPath);
+            StringAssert.Contains(helperLog, "start origin synthetic");
+            StringAssert.Contains(helperLog, $"command fetch {entry.ObjectOid}");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", previousPath);
+            Environment.SetEnvironmentVariable(logEnvironmentName, previousLogPath);
+        }
+    }
+
+    [TestMethod]
     public async Task Git_child_process_receives_local_only_replacement_and_lock_controls()
     {
         var prefix = StubPrefix();
@@ -550,6 +652,23 @@ public sealed class GitRepositoryReaderTests
         return ["exec", "--runtimeconfig", runtimeConfig, stubAssembly];
     }
 
+    private static string RemoteProbeDirectory()
+    {
+        var configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent?.Name ?? "Debug";
+        return Path.Combine(
+            FindRepositoryRoot(),
+            "tests",
+            "Analyzer.Tests",
+            "SourceContext",
+            "GitRemoteProbe",
+            "bin",
+            configuration,
+            "net10.0");
+    }
+
+    private static string PrependPath(string path, string? existingPath) =>
+        string.IsNullOrEmpty(existingPath) ? path : path + Path.PathSeparator + existingPath;
+
     private static bool IsProcessRunning(int processId)
     {
         try
@@ -574,7 +693,26 @@ public sealed class GitRepositoryReaderTests
         Assert.IsTrue(File.Exists(path), "The synthetic child process did not start in time.");
     }
 
-    private static async Task<GitFixtureResult> RunGitAsync(string workingDirectory, params string[] arguments)
+    private static Task<GitFixtureResult> RunGitAsync(string workingDirectory, params string[] arguments) =>
+        RunGitCoreAsync(workingDirectory, arguments, null, removeLazyFetch: false, allowNonzero: false);
+
+    private static Task<GitFixtureResult> RunGitWithInputAsync(
+        string workingDirectory,
+        byte[] input,
+        params string[] arguments) =>
+        RunGitCoreAsync(workingDirectory, arguments, input, removeLazyFetch: false, allowNonzero: false);
+
+    private static Task<GitFixtureResult> RunGitWithoutLazyFetchAsync(
+        string workingDirectory,
+        params string[] arguments) =>
+        RunGitCoreAsync(workingDirectory, arguments, null, removeLazyFetch: true, allowNonzero: true);
+
+    private static async Task<GitFixtureResult> RunGitCoreAsync(
+        string workingDirectory,
+        IReadOnlyList<string> arguments,
+        byte[]? standardInput,
+        bool removeLazyFetch,
+        bool allowNonzero)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -585,26 +723,38 @@ public sealed class GitRepositoryReaderTests
             RedirectStandardError = true,
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8,
-            CreateNoWindow = true
+            CreateNoWindow = true,
+            RedirectStandardInput = standardInput is not null
         };
+        if (removeLazyFetch)
+        {
+            startInfo.Environment.Remove("GIT_NO_LAZY_FETCH");
+        }
+
         foreach (var argument in arguments)
         {
             startInfo.ArgumentList.Add(argument);
         }
 
         using var process = Process.Start(startInfo) ?? throw new InvalidOperationException("Could not start synthetic Git fixture process.");
+        if (standardInput is not null)
+        {
+            await process.StandardInput.BaseStream.WriteAsync(standardInput);
+            process.StandardInput.Close();
+        }
+
         var stdoutTask = process.StandardOutput.ReadToEndAsync();
         var stderrTask = process.StandardError.ReadToEndAsync();
         await Task.WhenAll(stdoutTask, stderrTask, process.WaitForExitAsync());
-        if (process.ExitCode != 0)
+        if (process.ExitCode != 0 && !allowNonzero)
         {
             throw new InvalidOperationException($"Synthetic Git fixture command failed ({process.ExitCode}): {stderrTask.Result}");
         }
 
-        return new GitFixtureResult(stdoutTask.Result, stderrTask.Result);
+        return new GitFixtureResult(stdoutTask.Result, stderrTask.Result, process.ExitCode);
     }
 
-    private sealed record GitFixtureResult(string StandardOutput, string StandardError);
+    private sealed record GitFixtureResult(string StandardOutput, string StandardError, int ExitCode);
 }
 
 internal static class GitProcessResultTestExtensions
