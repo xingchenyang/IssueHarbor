@@ -1,4 +1,5 @@
 using IssueHarbor.Analyzer.Storage;
+using IssueHarbor.Analyzer.SourceContext;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,6 +10,14 @@ if (!string.IsNullOrWhiteSpace(durableDataRoot))
     var migrationsDirectory = Path.Combine(AppContext.BaseDirectory, "Storage", "Migrations");
     new StorageInitializer(connections, migrationsDirectory).InitializeOrVerify();
 }
+
+var sourceRepositories = builder.Configuration
+    .GetSection("IssueHarbor:SourceRepositories")
+    .Get<List<GitRepositoryMappingOptions>>() ?? [];
+var sourceRepositoryCatalog = new GitRepositoryCatalog(sourceRepositories);
+builder.Services.AddSingleton(sourceRepositoryCatalog);
+builder.Services.AddSingleton<GitProcessRunner>();
+builder.Services.AddSingleton<GitRepositoryReader>();
 
 builder.Services.AddRazorPages();
 

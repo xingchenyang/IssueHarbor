@@ -875,7 +875,7 @@ Not architecture blockers, but must be resolved before needed:
 - RedmineMcp 1.0 tool manifest (frozen by [Scope 006](../scopes/scope-006-redmine-mcp-manifest-contract.md));
 - RedmineMcp 1.0 read-path behavior, configuration, normalization, and upstream safety (frozen by [Scope 007](../scopes/scope-007-redmine-mcp-read-path-contract.md));
 - exact provider/profile adapter design;
-- exact source repository mapping/revision capture;
+- source repository mapping, immutable Git provenance, and the read-only/local-only source-context boundary are frozen by [Scope 008](../scopes/scope-008-source-repository-context-contract.md); external automated fetch/prune is expected for moving refs, while synchronization operations and scheduling remain deferred to deployment/operations scope;
 - exact Web UI localization scope;
 - exact backup retention/destination policy;
 - exact release automation near first release;

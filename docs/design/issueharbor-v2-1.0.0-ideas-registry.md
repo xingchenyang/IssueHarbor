@@ -267,21 +267,24 @@ Do not create a complex backup orchestration framework.
 
 ## 16. Source repository mapping / revision capture
 
-Classification: `OPEN`
+Classification: `CLOSED / FROZEN BY SCOPE 008`
 
 Frozen:
 
-- repositories are read-only;
-- exact revision/provenance matters.
+- one Redmine project maps to zero or one configured Git repository;
+- source reads are local-only and read-only through the system Git CLI;
+- each source context resolves once to an immutable commit and records repository key, object format, commit OID, and root tree OID;
+- tree enumeration, bounded blob reading, and commit-scoped search read committed Git objects without depending on a working tree;
+- bare/mirror repositories are supported;
+- external automated fetch/prune is supported and expected for moving refs.
 
-Still to define:
+Deferred to later scopes:
 
-- mapping from Redmine context to repo;
-- local checkout/cache strategy;
-- revision capture;
-- unavailable-repository behavior.
+- external synchronization scripts, schedules, credentials, and monitoring;
+- Snapshot provenance persistence and source selection;
+- repository-management UI and deployment-specific read-only mounts.
 
-Keep it functionally simple.
+The approved boundary and detailed behavior are defined by the [Scope 008 Source Repository Context Contract](../scopes/scope-008-source-repository-context-contract.md). IssueHarbor does not clone, fetch, pull, or push repositories.
 
 ## 17. Exact RedmineMcp 1.0 tool manifest
 

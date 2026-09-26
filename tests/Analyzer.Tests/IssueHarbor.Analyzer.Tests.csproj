@@ -18,6 +18,8 @@
           CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Remove="SourceContext/GitProcessStub/**/*.cs" />
     <ProjectReference Include="../../src/Analyzer/IssueHarbor.Analyzer.csproj" />
+    <ProjectReference Include="SourceContext/GitProcessStub/GitProcessStub.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>
